@@ -21,6 +21,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     coordinator = CarbonFootprintCoordinator(hass, entry)
+
+    # Load stored data before refreshing
+    await coordinator.async_setup()
     await coordinator.async_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
@@ -36,10 +39,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 if energy_entity_id in coordinator._previous_energy_values:
                     _LOGGER.debug("Resetting counter for %s", energy_entity_id)
                     coordinator._previous_energy_values.pop(energy_entity_id)
+                    if energy_entity_id in coordinator._entity_carbon:
+                        coordinator._entity_carbon[energy_entity_id] = 0
             else:
-                # Reset all entities
+                # Reset all counters
                 _LOGGER.debug("Resetting all counters")
                 coordinator._previous_energy_values = {}
+                coordinator._entity_carbon = {}
+                coordinator._total_carbon = 0
+
+            # Save the reset state to persistent storage
+            await coordinator._store.async_save(
+                {
+                    "total_carbon": coordinator._total_carbon,
+                    "entity_carbon": coordinator._entity_carbon,
+                    "previous_energy_values": coordinator._previous_energy_values,
+                }
+            )
 
         # Force data update
         for coordinator in hass.data[DOMAIN].values():

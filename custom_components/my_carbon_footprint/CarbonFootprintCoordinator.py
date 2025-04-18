@@ -5,11 +5,14 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
+STORAGE_VERSION = 1
+STORAGE_KEY = f"{DOMAIN}.coordinator_data"
 
 
 class CarbonFootprintCoordinator(DataUpdateCoordinator):
@@ -24,12 +27,24 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator):
         self._total_carbon: float = 0  # Running total of carbon footprint
         self._entity_carbon: dict[str, float] = {}  # Running totals per entity
 
+        # Initialize storage for persistent data
+        self._store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
             update_interval=timedelta(seconds=SCAN_INTERVAL),
         )
+
+    async def async_setup(self):
+        """Load stored data when coordinator is set up."""
+        stored_data = await self._store.async_load()
+        if stored_data:
+            _LOGGER.debug("Loading stored carbon footprint data: %s", stored_data)
+            self._total_carbon = stored_data.get("total_carbon", 0)
+            self._entity_carbon = stored_data.get("entity_carbon", {})
+            self._previous_energy_values = stored_data.get("previous_energy_values", {})
 
     async def _async_update_data(self):
         """Fetch data from sensors."""
@@ -84,6 +99,15 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator):
             # Update total carbon footprint
             self._total_carbon += current_update_carbon
             result["total_carbon"] = self._total_carbon
+
+            # Save data to persistent storage
+            await self._store.async_save(
+                {
+                    "total_carbon": self._total_carbon,
+                    "entity_carbon": self._entity_carbon,
+                    "previous_energy_values": self._previous_energy_values,
+                }
+            )
 
             _LOGGER.debug(f"Carbon footprint result: {result}")
 
