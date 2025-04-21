@@ -1,6 +1,5 @@
 """Test the My Carbon Footprint integration initialization."""
 
-# Import logging for _LOGGER
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,7 +14,6 @@ from custom_components.my_carbon_footprint.const import DOMAIN
 
 @pytest.fixture
 def mock_config_entry():
-    """Create a mock config entry."""
     return MagicMock(
         entry_id="test_entry_id",
         data={
@@ -27,11 +25,8 @@ def mock_config_entry():
 
 
 async def test_setup_entry(hass: HomeAssistant, mock_config_entry):
-    """Test setting up the integration."""
-    # Mock the coordinator class and its refresh method
     coordinator_mock = AsyncMock()
 
-    # Mock forward_entry_setups to avoid integration loading issues
     with (
         patch(
             "homeassistant.config_entries.ConfigEntries.async_forward_entry_setups",
@@ -42,25 +37,20 @@ async def test_setup_entry(hass: HomeAssistant, mock_config_entry):
             return_value=coordinator_mock,
         ),
     ):
-        # Setup the entry
         result = await async_setup_entry(hass, mock_config_entry)
         assert result is True
 
-        # Check that the coordinator was initialized correctly
         assert hass.data[DOMAIN][mock_config_entry.entry_id] == coordinator_mock
         coordinator_mock.async_refresh.assert_called_once()
 
-        # Verify service registration
         assert DOMAIN in hass.services.async_services()
         assert "reset_counter" in hass.services.async_services()[DOMAIN]
 
 
 async def test_unload_entry(hass: HomeAssistant, mock_config_entry):
-    """Test unloading the integration."""
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][mock_config_entry.entry_id] = MagicMock()
 
-    # Mock successful unload of platforms
     with patch(
         "homeassistant.config_entries.ConfigEntries.async_unload_platforms",
         return_value=True,
@@ -68,22 +58,17 @@ async def test_unload_entry(hass: HomeAssistant, mock_config_entry):
         result = await async_unload_entry(hass, mock_config_entry)
         assert result is True
 
-        # Check that entry was removed from hass.data
         assert mock_config_entry.entry_id not in hass.data[DOMAIN]
 
 
 async def test_service_reset_counter_specific_entity():
-    """Test reset_counter service for a specific entity."""
-    # Create a dummy HomeAssistant-like object
     hass = MagicMock()
     hass_data = {}
     hass.data = {DOMAIN: hass_data}
 
-    # Create a simple dict to track previous energy values for our test
     energy_values1 = {"sensor.energy1": 10, "sensor.energy2": 20}
     energy_values2 = {"sensor.energy3": 30, "sensor.energy4": 40}
 
-    # Create mock coordinators
     coordinator1 = MagicMock()
     coordinator1._previous_energy_values = energy_values1
     coordinator1.async_refresh = AsyncMock()
@@ -92,11 +77,9 @@ async def test_service_reset_counter_specific_entity():
     coordinator2._previous_energy_values = energy_values2
     coordinator2.async_refresh = AsyncMock()
 
-    # Add coordinators to hass.data
     hass_data["entry1"] = coordinator1
     hass_data["entry2"] = coordinator2
 
-    # Create a service call that will reset energy1
     service_call = MagicMock()
     service_call.data = {"energy_entity_id": "sensor.energy1"}
 

@@ -19,6 +19,8 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+.ruff_cache/
+.venv/
 
 # Virtual Environment
 venv/

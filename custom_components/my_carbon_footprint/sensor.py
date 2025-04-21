@@ -1,8 +1,5 @@
 """Sensor platform for My Carbon Footprint integration."""
 
-from __future__ import annotations
-
-import logging
 from typing import Any, cast
 
 from homeassistant.components.sensor import (
@@ -15,10 +12,10 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from custom_components.my_carbon_footprint.models import EnergySensor
+
 from . import CarbonFootprintCoordinator
 from .const import DOMAIN, ICON_CARBON, NAME
-
-_LOGGER = logging.getLogger(__name__)
 
 
 async def async_setup_entry(
@@ -77,7 +74,7 @@ class CarbonFootprintSensor(
         if not self.coordinator.data:
             return 0
 
-        return self.coordinator.data["total_carbon"]
+        return self.coordinator.data.total_carbon
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -86,7 +83,7 @@ class CarbonFootprintSensor(
             return {}
 
         return {
-            "carbon_intensity": self.coordinator.data["carbon_intensity"],
+            "carbon_intensity": self.coordinator.data.carbon_intensity,
             "energy_sensors": len(self.coordinator.energy_entities),
         }
 
@@ -110,9 +107,9 @@ class EnergyCarbonFootprintSensor(
     ) -> None:
         """Initialize the sensor."""
         super().__init__(coordinator)
-        self._entry = entry
-        self._energy_entity_id = energy_entity_id
-        self.coordinator = coordinator
+        self._entry: ConfigEntry = entry
+        self._energy_entity_id: str = energy_entity_id
+        self.coordinator: CarbonFootprintCoordinator = coordinator
 
         # Extract the entity name from the entity_id
         # (e.g., sensor.living_room_energy becomes living_room_energy)
@@ -135,33 +132,31 @@ class EnergyCarbonFootprintSensor(
     @property
     def native_value(self) -> float:
         """Return the carbon footprint value."""
-        if not self.coordinator.data or not self.coordinator.data.get("energy_sensors"):
+        if not self.coordinator.data or not self.coordinator.data.energy_sensors:
             return 0
 
-        energy_data = self.coordinator.data["energy_sensors"].get(
-            self._energy_entity_id
-        )
+        energy_data = self.coordinator.data.energy_sensors.get(self._energy_entity_id)
         if not energy_data:
             return 0
 
-        return energy_data["carbon"]
+        return energy_data.carbon
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return additional attributes."""
-        if not self.coordinator.data or not self.coordinator.data.get("energy_sensors"):
+        if not self.coordinator.data or not self.coordinator.data.energy_sensors:
             return {
                 "energy_consumption": 0,
                 "carbon_intensity": 0,
                 "source_entity": self._energy_entity_id,
             }
 
-        energy_data = self.coordinator.data["energy_sensors"].get(
-            self._energy_entity_id, {}
+        energy_data = self.coordinator.data.energy_sensors.get(
+            self._energy_entity_id, EnergySensor(value=0, carbon=0)
         )
 
         return {
-            "energy_consumption": energy_data.get("value", 0),
-            "carbon_intensity": self.coordinator.data.get("carbon_intensity", 0),
+            "energy_consumption": energy_data.value,
+            "carbon_intensity": self.coordinator.data.carbon_intensity,
             "source_entity": self._energy_entity_id,
         }

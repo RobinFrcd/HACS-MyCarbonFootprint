@@ -2,7 +2,7 @@
 name = "ha-my-carbon-footprint"
 version = "0.1.0"
 authors = [
-    {name = "RobinFrcd", email = "your.email@example.com"},
+    {name = "RobinFrcd", email = "robinfrcd.github@wanado.eu"},
 ]
 description = "Home Assistant integration to calculate carbon footprint based on energy consumption"
 readme = "README.md"
@@ -12,10 +12,12 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "pydantic>=2.10.6",
+]
 
 [dependency-groups]
 dev = [
-    "colorlog",
     "homeassistant==2025.4.0",
     "pytest-homeassistant-custom-component",
     "voluptuous-stubs==0.1.1",
@@ -31,8 +33,8 @@ test = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/yourusername/HACS-MyCarbonFootprint"
-"Bug Tracker" = "https://github.com/yourusername/HACS-MyCarbonFootprint/issues"
+"Homepage" = "https://github.com/RobinFrcd/HACS-MyCarbonFootprint"
+"Bug Tracker" = "https://github.com/RobinFrcd/HACS-MyCarbonFootprint/issues"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

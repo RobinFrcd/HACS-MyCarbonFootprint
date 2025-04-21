@@ -1,6 +1,5 @@
 """Config flow for My Carbon Footprint integration."""
 
-import logging
 from typing import Any
 
 import voluptuous as vol
@@ -9,8 +8,6 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector
 
 from .const import CONF_CARBON_INTENSITY, CONF_ENERGY_ENTITIES, DOMAIN
-
-_LOGGER = logging.getLogger(__name__)
 
 
 def validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str, str]:
@@ -33,7 +30,6 @@ def validate_input(hass: HomeAssistant, user_input: dict[str, Any]) -> dict[str,
 
 def get_schema(defaults: dict[str, Any]) -> vol.Schema:
     """Get the schema with the given defaults."""
-    # Prepare selector for carbon intensity entity
     carbon_intensity_selector = selector.EntitySelector(
         selector.EntitySelectorConfig(
             domain=["sensor"],
@@ -41,7 +37,6 @@ def get_schema(defaults: dict[str, Any]) -> vol.Schema:
         )
     )
 
-    # Prepare selector for energy entities
     energy_entities_selector = selector.EntitySelector(
         selector.EntitySelectorConfig(
             domain=["sensor"],
@@ -100,7 +95,6 @@ class CarbonFootprintOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for My Carbon Footprint."""
 
     def __init__(self, config_entry):
-        """Initialize options flow."""
         self.config_entry = config_entry
 
     async def async_step_init(self, user_input=None):

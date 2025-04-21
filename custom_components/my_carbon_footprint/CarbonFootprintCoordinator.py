@@ -8,6 +8,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from custom_components.my_carbon_footprint.models import CoordinatorData, EnergySensor
+
 from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -15,7 +17,7 @@ STORAGE_VERSION = 1
 STORAGE_KEY = f"{DOMAIN}.coordinator_data"
 
 
-class CarbonFootprintCoordinator(DataUpdateCoordinator):
+class CarbonFootprintCoordinator(DataUpdateCoordinator[CoordinatorData]):
     """Class to manage fetching carbon footprint data."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry):
@@ -46,18 +48,18 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator):
             self._entity_carbon = stored_data.get("entity_carbon", {})
             self._previous_energy_values = stored_data.get("previous_energy_values", {})
 
-    async def _async_update_data(self):
+    async def _async_update_data(self) -> CoordinatorData | None:
         """Fetch data from sensors."""
         try:
             carbon_intensity = self._get_carbon_intensity()
             if carbon_intensity is None:
                 return None
 
-            result = {
-                "carbon_intensity": carbon_intensity,
-                "energy_sensors": {},
-                "total_carbon": self._total_carbon,
-            }
+            result = CoordinatorData(
+                carbon_intensity=carbon_intensity,
+                energy_sensors={},
+                total_carbon=self._total_carbon,
+            )
 
             current_update_carbon = 0
 
@@ -72,10 +74,10 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator):
 
                 if prev_value is None:
                     # We need two measurements to calculate consumption
-                    result["energy_sensors"][energy_entity_id] = {
-                        "value": 0,
-                        "carbon": self._entity_carbon.get(energy_entity_id, 0),
-                    }
+                    result.energy_sensors[energy_entity_id] = EnergySensor(
+                        value=0,
+                        carbon=self._entity_carbon.get(energy_entity_id, 0),
+                    )
                     continue
 
                 # Calculate consumption since last update (in kWh)
@@ -91,14 +93,14 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator):
                 self._entity_carbon[energy_entity_id] = entity_total
                 current_update_carbon += carbon
 
-                result["energy_sensors"][energy_entity_id] = {
-                    "value": consumption,
-                    "carbon": entity_total,
-                }
+                result.energy_sensors[energy_entity_id] = EnergySensor(
+                    value=consumption,
+                    carbon=entity_total,
+                )
 
             # Update total carbon footprint
             self._total_carbon += current_update_carbon
-            result["total_carbon"] = self._total_carbon
+            result.total_carbon = self._total_carbon
 
             # Save data to persistent storage
             await self._store.async_save(
