@@ -109,6 +109,7 @@ async def test_coordinator_update_with_consumption(
 
         mock_get.side_effect = side_effect
 
+        coordinator.data = 1  # Fake data to test first update after load
         data = await coordinator._async_update_data()
 
         assert data is not None

@@ -62,6 +62,7 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator[CoordinatorData]):
             )
 
             current_update_carbon = 0
+            first_update_after_load = not self.data  # Check if this is the first run
 
             for energy_entity_id in self.energy_entities:
                 energy_value = self._get_energy_value(energy_entity_id)
@@ -70,12 +71,15 @@ class CarbonFootprintCoordinator(DataUpdateCoordinator[CoordinatorData]):
 
                 prev_value = self._previous_energy_values.get(energy_entity_id)
 
+                # Always update the previous value for the next cycle
                 self._previous_energy_values[energy_entity_id] = energy_value
 
-                if prev_value is None:
-                    # We need two measurements to calculate consumption
+                # If prev_value is None (first time seeing this sensor ever)
+                # or if it's the first update cycle after loading stored data,
+                # skip calculation and just report stored carbon.
+                if prev_value is None or first_update_after_load:
                     result.energy_sensors[energy_entity_id] = EnergySensor(
-                        value=0,
+                        value=0,  # No consumption calculated yet
                         carbon=self._entity_carbon.get(energy_entity_id, 0),
                     )
                     continue

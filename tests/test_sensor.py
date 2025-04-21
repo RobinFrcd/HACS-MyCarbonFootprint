@@ -90,7 +90,8 @@ async def test_total_carbon_footprint_sensor(
     assert device_info["name"] == "My Carbon Footprint"
 
     # Test state values
-    assert sensor.native_value == mock_coordinator.data.total_carbon
+    total_carbon = mock_coordinator.data.total_carbon
+    assert sensor.native_value == total_carbon
 
     # Test attributes
     attrs = sensor.extra_state_attributes
@@ -99,7 +100,9 @@ async def test_total_carbon_footprint_sensor(
 
     # Test with no data
     mock_coordinator.data = None
-    assert sensor.native_value == 0
+    assert (
+        sensor.native_value == total_carbon
+    )  # Keep latest data even if coordinator is empty
     assert sensor.extra_state_attributes == {}
 
 
@@ -132,7 +135,8 @@ async def test_energy_carbon_footprint_sensor(
 
     # Test with no data
     mock_coordinator.data = None
-    assert sensor.native_value == 0
+    # Keep latest data even if coordinator is empty
+    assert sensor.native_value == 0.5
 
     # Test attributes with no data
     attrs = sensor.extra_state_attributes
@@ -148,7 +152,8 @@ async def test_energy_carbon_footprint_sensor(
             "sensor.energy2": EnergySensor(value=10, carbon=1.0),
         },
     )
-    assert sensor.native_value == 0
+    # Keep latest data even if coordinator is empty
+    assert sensor.native_value == 0.5
 
     # Test attributes with missing entity data
     attrs = sensor.extra_state_attributes

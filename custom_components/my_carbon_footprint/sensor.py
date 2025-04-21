@@ -1,5 +1,6 @@
 """Sensor platform for My Carbon Footprint integration."""
 
+import contextlib
 from typing import Any, cast
 
 from homeassistant.components.sensor import (
@@ -7,9 +8,11 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.my_carbon_footprint.models import EnergySensor
@@ -37,7 +40,7 @@ async def async_setup_entry(
 
 
 class CarbonFootprintSensor(
-    CoordinatorEntity[CarbonFootprintCoordinator], SensorEntity
+    CoordinatorEntity[CarbonFootprintCoordinator], RestoreEntity, SensorEntity
 ):
     """Sensor for total carbon footprint."""
 
@@ -56,6 +59,16 @@ class CarbonFootprintSensor(
         self._attr_unique_id = f"{entry.entry_id}_total_carbon"
         self._attr_name = "Total Carbon Footprint"
         self.coordinator = coordinator
+        # Initialize native_value from restored state if available
+        self._attr_native_value: float | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            with contextlib.suppress(ValueError, TypeError):
+                self._attr_native_value = float(last_state.state)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -69,12 +82,16 @@ class CarbonFootprintSensor(
         )
 
     @property
-    def native_value(self) -> float:
+    def native_value(self) -> float | None:
         """Return the carbon footprint value."""
-        if not self.coordinator.data:
-            return 0
+        # Return the value from the coordinator if available
+        if self.coordinator.last_update_success and self.coordinator.data:
+            self._attr_native_value = self.coordinator.data.total_carbon
+            return self._attr_native_value
 
-        return self.coordinator.data.total_carbon
+        # Otherwise, return the last known value
+        # (restored or from previous coordinator update)
+        return self._attr_native_value
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -89,7 +106,7 @@ class CarbonFootprintSensor(
 
 
 class EnergyCarbonFootprintSensor(
-    CoordinatorEntity[CarbonFootprintCoordinator], SensorEntity
+    CoordinatorEntity[CarbonFootprintCoordinator], RestoreEntity, SensorEntity
 ):
     """Sensor for individual energy source carbon footprint."""
 
@@ -117,6 +134,16 @@ class EnergyCarbonFootprintSensor(
 
         self._attr_unique_id = f"{entry.entry_id}_{entity_name}_carbon"
         self._attr_name = f"{entity_name.replace('_', ' ').title()} Carbon Footprint"
+        # Initialize native_value from restored state if available
+        self._attr_native_value: float | None = None
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+        last_state = await self.async_get_last_state()
+        if last_state and last_state.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+            with contextlib.suppress(ValueError, TypeError):
+                self._attr_native_value = float(last_state.state)
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -130,16 +157,25 @@ class EnergyCarbonFootprintSensor(
         )
 
     @property
-    def native_value(self) -> float:
+    def native_value(self) -> float | None:
         """Return the carbon footprint value."""
-        if not self.coordinator.data or not self.coordinator.data.energy_sensors:
-            return 0
+        energy_data: EnergySensor | None = None
+        if (
+            self.coordinator.last_update_success
+            and self.coordinator.data
+            and self.coordinator.data.energy_sensors
+        ):
+            energy_data = self.coordinator.data.energy_sensors.get(
+                self._energy_entity_id
+            )
 
-        energy_data = self.coordinator.data.energy_sensors.get(self._energy_entity_id)
-        if not energy_data:
-            return 0
+        if energy_data:
+            self._attr_native_value = energy_data.carbon
+            return self._attr_native_value
 
-        return energy_data.carbon
+        # Otherwise, return the last known value
+        # (restored or from previous coordinator update)
+        return self._attr_native_value
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
